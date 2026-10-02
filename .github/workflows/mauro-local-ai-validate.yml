@@ -1,0 +1,46 @@
+name: Mauro Local AI validation
+
+on:
+  push:
+    branches:
+      - milestone/mauro-local-ai-web-shell
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Restore isolated project payload
+        run: |
+          base64 --decode .mauro-local-ai-ci/payload.b64 > /tmp/mauro-local-ai.tar.gz
+          tar -xzf /tmp/mauro-local-ai.tar.gz -C /tmp
+          test -f /tmp/mauro-local-ai/package.json
+      - name: Install dependencies
+        working-directory: /tmp/mauro-local-ai
+        run: npm install --no-audit --no-fund
+      - name: Lint
+        working-directory: /tmp/mauro-local-ai
+        run: npm run lint
+      - name: Typecheck
+        working-directory: /tmp/mauro-local-ai
+        run: npm run typecheck
+      - name: Unit tests
+        working-directory: /tmp/mauro-local-ai
+        run: npm run test
+      - name: Build
+        working-directory: /tmp/mauro-local-ai
+        run: npm run build
+      - name: Install Playwright Chromium
+        working-directory: /tmp/mauro-local-ai/apps/web
+        run: npx playwright install --with-deps chromium
+      - name: Browser E2E
+        working-directory: /tmp/mauro-local-ai/apps/web
+        run: npm run test:e2e
